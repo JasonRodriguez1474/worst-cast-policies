@@ -15,7 +15,11 @@
 	},
 	"dependencies": {
 		"@openrouter/ai-sdk-provider": "^1.2.0",
-		"ai": "^5.0.31"
+		"ai": "^5.0.31",
+		"html2canvas": "^1.4.1",
+		"jspdf": "^3.0.2",
+		"jszip": "^3.10.1",
+		"marked": "^16.2.1"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
