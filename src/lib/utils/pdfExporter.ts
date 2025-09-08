@@ -1,5 +1,6 @@
-import jsPDF from 'jspdf';
 import JSZip from 'jszip';
+import MarkdownIt from 'markdown-it';
+import html2pdf from 'html2pdf.js'; // Add this import
 import type { PolicySet, SecurityFramework } from '$lib/types';
 
 interface PDFOptions {
@@ -71,118 +72,50 @@ async function createPolicyPDF(
 	organizationName: string,
 	framework: SecurityFramework
 ): Promise<Uint8Array> {
-	const pdf = new jsPDF('p', 'mm', 'a4');
 	const options = defaultOptions;
 
-	let currentY = options.margin;
+	// Convert markdown to HTML using markdown-it
+	const md = new MarkdownIt();
+	const htmlContent = md.render(markdownContent);
 
-	// Add header
-	pdf.setFontSize(16);
-	pdf.setFont('helvetica', 'bold');
-	pdf.text(policyTitle, options.margin, currentY);
-	currentY += 10;
+	// Create a container for the HTML with enhanced CSS for tables and lists
+	const container = document.createElement('div');
+	container.innerHTML = `
+        <style>
+            table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+            th, td { border: 2px solid #000; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            ul, ol { margin-left: 20px; }
+            li { margin-bottom: 5px; }
+            ul ul, ol ol { margin-left: 15px; } /* Better sublist handling */
+        </style>
+        <h1>${policyTitle}</h1>
+        <h2>${organizationName}</h2>
+        <p><strong>Framework:</strong> ${framework}</p>
+        <p><strong>Generated:</strong> ${new Date().toLocaleDateString()}</p>
+        ${htmlContent}
+    `;
 
-	pdf.setFontSize(12);
-	pdf.text(organizationName, options.margin, currentY);
-	currentY += 8;
+	// Append to body temporarily for rendering
+	document.body.appendChild(container);
 
-	pdf.setFontSize(10);
-	pdf.setFont('helvetica', 'normal');
-	pdf.text(`Framework: ${framework}`, options.margin, currentY);
-	currentY += 8;
+	// Configure html2pdf options
+	const pdfOptions = {
+		margin: options.margin,
+		filename: 'temp.pdf',
+		image: { type: 'jpeg', quality: 0.98 },
+		html2canvas: { scale: 2, useCORS: true },
+		jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+	};
 
-	pdf.text(`Generated: ${new Date().toLocaleDateString()}`, options.margin, currentY);
-	currentY += 15;
+	// Generate PDF as Uint8Array
+	const pdfBlob = await html2pdf().set(pdfOptions).from(container).outputPdf('blob');
+	const arrayBuffer = await pdfBlob.arrayBuffer();
 
-	// Convert markdown to plain text with basic formatting
-	const plainText = convertMarkdownToPlainText(markdownContent);
+	// Remove temporary container
+	document.body.removeChild(container);
 
-	// Add content
-	pdf.setFontSize(options.fontSize);
-	currentY = addTextToPDF(pdf, plainText, options.margin, currentY, options);
-
-	// Add footer to each page
-	const pageCount = pdf.getNumberOfPages();
-	for (let i = 1; i <= pageCount; i++) {
-		pdf.setPage(i);
-		pdf.setFontSize(8);
-		pdf.text(
-			`Page ${i} of ${pageCount} | ${organizationName} ${policyTitle}`,
-			options.margin,
-			options.pageHeight - 10
-		);
-	}
-
-	return new Uint8Array(pdf.output('arraybuffer') as ArrayBuffer);
-}
-
-function convertMarkdownToPlainText(markdown: string): string {
-	// Remove markdown syntax while preserving structure
-	const text = markdown
-		// Headers
-		.replace(/^#+\s+(.*)$/gm, '\n$1\n' + '='.repeat(50) + '\n')
-		// Bold
-		.replace(/\*\*(.*?)\*\*/g, '$1')
-		// Italic
-		.replace(/\*(.*?)\*/g, '$1')
-		// Lists
-		.replace(/^\s*[-*+]\s+/gm, '• ')
-		.replace(/^\s*\d+\.\s+/gm, '• ')
-		// Tables (basic conversion)
-		.replace(/\|/g, ' | ')
-		// Remove extra markdown
-		.replace(/```[\s\S]*?```/g, '')
-		.replace(/`([^`]+)`/g, '$1')
-		// Clean up extra whitespace
-		.replace(/\n{3,}/g, '\n\n')
-		.trim();
-
-	return text;
-}
-
-function addTextToPDF(
-	pdf: jsPDF,
-	text: string,
-	x: number,
-	startY: number,
-	options: PDFOptions
-): number {
-	const lines = text.split('\n');
-	let currentY = startY;
-	const maxWidth = options.pageWidth - 2 * options.margin;
-
-	for (const line of lines) {
-		if (line.trim() === '') {
-			currentY += options.fontSize * 0.5;
-			continue;
-		}
-
-		// Check if we need a new page
-		if (currentY > options.pageHeight - options.margin - 20) {
-			pdf.addPage();
-			currentY = options.margin;
-		}
-
-		// Handle long lines by wrapping them
-		const wrappedLines = pdf.splitTextToSize(line, maxWidth);
-
-		for (const wrappedLine of wrappedLines) {
-			if (currentY > options.pageHeight - options.margin - 20) {
-				pdf.addPage();
-				currentY = options.margin;
-			}
-
-			// Check if this is a header line (indicated by = characters)
-			if (wrappedLine.includes('='.repeat(10))) {
-				continue; // Skip the separator lines
-			}
-
-			pdf.text(wrappedLine, x, currentY);
-			currentY += options.fontSize * options.lineHeight;
-		}
-	}
-
-	return currentY;
+	return new Uint8Array(arrayBuffer);
 }
 
 function downloadBlob(blob: Blob, filename: string): void {

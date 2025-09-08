@@ -74,7 +74,11 @@
 <div class="container">
 	<header>
 		<h1>Security Policy Generator</h1>
-		<p>Generate comprehensive security policies tailored to your organization's needs</p>
+		<p>
+			We set out to discover the best LLM to generate cybersecurity policies and along the way we
+			also found the worst. <br />This generator uses our worst-ranking LLM and should not be used
+			in production. It was designed for cybersecurity students to conduct mock audits.
+		</p>
 	</header>
 
 	{#if !generatedPolicies}
