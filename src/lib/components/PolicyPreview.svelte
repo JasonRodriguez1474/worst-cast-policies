@@ -2,6 +2,8 @@
 	import { createEventDispatcher } from 'svelte';
 	import { marked } from 'marked';
 	import { exportToPDF } from '$lib/utils/pdfExporter';
+	import { fade, fly, scale } from 'svelte/transition';
+	import { quintOut, elasticOut } from 'svelte/easing';
 	import type { PolicySet, SecurityFramework } from '$lib/types';
 
 	export let policies: PolicySet;
@@ -39,81 +41,168 @@
 	$: renderedHTML = marked(currentPolicyContent);
 </script>
 
-<div class="policy-preview">
-	<div class="preview-header">
-		<h2>Generated Security Policies for {organizationName}</h2>
-		<p class="framework-info">Compliance Framework: <strong>{framework}</strong></p>
+<div class="policy-preview" in:fade={{ duration: 500 }}>
+	<div class="preview-header" in:fly={{ y: -30, duration: 600, delay: 100 }}>
+		<div class="header-content">
+			<div class="success-badge" in:scale={{ duration: 400, delay: 200, easing: elasticOut }}>
+				✓ Policies Generated
+			</div>
+			<h2 class="preview-title gradient-text">Security Policies for {organizationName}</h2>
+			<div class="framework-badge">
+				<span class="badge-icon">🛡️</span>
+				<span class="badge-text">Compliance Framework: <strong>{framework}</strong></span>
+			</div>
+		</div>
 
-		<div class="action-buttons">
-			<button class="secondary-btn" on:click={resetForm}> Generate New Policies </button>
-			<button class="export-btn" on:click={handleExport} disabled={isExporting}>
-				{#if isExporting}
-					Exporting...
-				{:else}
-					Export as PDF Bundle
-				{/if}
+		<div class="action-buttons" in:fly={{ x: 30, duration: 500, delay: 300 }}>
+			<button class="secondary-btn" on:click={resetForm}>
+				<span class="btn-icon">🔄</span>
+				Generate New Policies
+			</button>
+			<button class="export-btn" on:click={handleExport} disabled={isExporting} class:loading={isExporting}>
+				<span class="btn-content">
+					{#if isExporting}
+						<div class="spinner"></div>
+						Exporting...
+					{:else}
+						<span class="btn-icon">💾</span>
+						Export as PDF Bundle
+					{/if}
+				</span>
 			</button>
 		</div>
 	</div>
 
-	<div class="policy-tabs">
-		<button
-			class="tab {activePolicy === 'accessControl' ? 'active' : ''}"
-			on:click={() => (activePolicy = 'accessControl')}
-		>
-			Access Control
-		</button>
-		<button
-			class="tab {activePolicy === 'acceptableUsage' ? 'active' : ''}"
-			on:click={() => (activePolicy = 'acceptableUsage')}
-		>
-			Acceptable Usage
-		</button>
-		<button
-			class="tab {activePolicy === 'incidentResponse' ? 'active' : ''}"
-			on:click={() => (activePolicy = 'incidentResponse')}
-		>
-			Incident Response
-		</button>
+	<div class="tabs-container" in:fly={{ y: 20, duration: 500, delay: 400 }}>
+		<div class="policy-tabs">
+			<button
+				class="tab {activePolicy === 'accessControl' ? 'active' : ''}"
+				on:click={() => (activePolicy = 'accessControl')}
+			>
+				<span class="tab-icon">🔐</span>
+				<span class="tab-text">Access Control</span>
+			</button>
+			<button
+				class="tab {activePolicy === 'acceptableUsage' ? 'active' : ''}"
+				on:click={() => (activePolicy = 'acceptableUsage')}
+			>
+				<span class="tab-icon">📋</span>
+				<span class="tab-text">Acceptable Usage</span>
+			</button>
+			<button
+				class="tab {activePolicy === 'incidentResponse' ? 'active' : ''}"
+				on:click={() => (activePolicy = 'incidentResponse')}
+			>
+				<span class="tab-icon">⚡</span>
+				<span class="tab-text">Incident Response</span>
+			</button>
+		</div>
 	</div>
 
-	<div class="policy-content">
-		<div class="policy-title">
-			<h3>{policyTitles[activePolicy]}</h3>
-		</div>
+	<div class="policy-content" in:fly={{ y: 30, duration: 500, delay: 500 }}>
+		<div class="policy-card">
+			<div class="policy-header">
+				<div class="policy-title-section">
+					<h3 class="policy-title">{policyTitles[activePolicy]}</h3>
+					<div class="policy-meta">
+						<span class="meta-item">
+							<span class="meta-icon">📄</span>
+							Generated for {organizationName}
+						</span>
+						<span class="meta-item">
+							<span class="meta-icon">🕰️</span>
+							{new Date().toLocaleDateString()}
+						</span>
+					</div>
+				</div>
+			</div>
 
-		<div class="rendered-content">
-			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			{@html renderedHTML}
+			<div class="rendered-content">
+				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+				{@html renderedHTML}
+			</div>
 		</div>
 	</div>
 </div>
 
 <style>
 	.policy-preview {
-		max-width: 1000px;
+		max-width: 1200px;
 		margin: 0 auto;
+		padding: 0 1rem;
 	}
 
+	/* Header Styles */
 	.preview-header {
+		background: rgba(255, 255, 255, 0.95);
+		backdrop-filter: blur(20px);
+		border-radius: var(--border-radius-lg);
+		padding: 3rem 2rem 2rem;
+		margin-bottom: 3rem;
+		box-shadow: var(--shadow-xl);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		position: relative;
+		overflow: hidden;
+	}
+
+	.preview-header::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 4px;
+		background: var(--gradient-primary);
+	}
+
+	.header-content {
 		text-align: center;
 		margin-bottom: 2rem;
-		padding: 2rem;
-		background: #f8f9fa;
-		border-radius: 8px;
-		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 	}
 
-	.preview-header h2 {
-		color: #1a1a1a;
-		margin-bottom: 0.5rem;
+	.success-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		background: rgba(34, 197, 94, 0.1);
+		color: #16a34a;
+		padding: 0.5rem 1rem;
+		border-radius: 25px;
+		font-weight: 600;
+		font-size: 0.9rem;
+		border: 1px solid rgba(34, 197, 94, 0.2);
+		margin-bottom: 1rem;
 	}
 
-	.framework-info {
-		color: #666;
+	.preview-title {
+		font-size: clamp(1.75rem, 4vw, 2.5rem);
+		font-weight: 700;
 		margin-bottom: 1.5rem;
+		line-height: 1.2;
+		letter-spacing: -0.02em;
 	}
 
+	.framework-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		background: var(--fsp-light-blue);
+		color: white;
+		padding: 0.75rem 1.5rem;
+		border-radius: 25px;
+		font-weight: 500;
+		box-shadow: var(--shadow-md);
+	}
+
+	.badge-icon {
+		font-size: 1.1rem;
+	}
+
+	.badge-text strong {
+		font-weight: 700;
+	}
+
+	/* Action Buttons */
 	.action-buttons {
 		display: flex;
 		gap: 1rem;
@@ -123,155 +212,331 @@
 
 	.secondary-btn,
 	.export-btn {
-		padding: 0.75rem 1.5rem;
-		border-radius: 4px;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 1rem 1.75rem;
+		border-radius: var(--border-radius);
 		font-weight: 600;
 		cursor: pointer;
-		transition: all 0.3s ease;
+		transition: var(--transition);
 		border: none;
 		font-size: 1rem;
+		position: relative;
+		overflow: hidden;
+		box-shadow: var(--shadow-md);
 	}
 
 	.secondary-btn {
-		background: #6c757d;
+		background: var(--fsp-dark-gray);
 		color: white;
 	}
 
 	.secondary-btn:hover {
-		background: #5a6268;
+		background: #2a3f47;
+		transform: translateY(-2px);
+		box-shadow: var(--shadow-lg);
 	}
 
 	.export-btn {
-		background: #28a745;
+		background: var(--gradient-secondary);
 		color: white;
 	}
 
 	.export-btn:hover:not(:disabled) {
-		background: #218838;
+		transform: translateY(-2px);
+		box-shadow: var(--shadow-lg);
 	}
 
 	.export-btn:disabled {
 		background: #ccc;
 		cursor: not-allowed;
+		transform: none;
+	}
+
+	.btn-content {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.btn-icon {
+		font-size: 1rem;
+	}
+
+	/* Tabs */
+	.tabs-container {
+		margin-bottom: 2rem;
 	}
 
 	.policy-tabs {
 		display: flex;
-		border-bottom: 2px solid #e9ecef;
-		margin-bottom: 2rem;
-		gap: 0.5rem;
+		background: rgba(255, 255, 255, 0.7);
+		backdrop-filter: blur(10px);
+		border-radius: var(--border-radius);
+		padding: 0.5rem;
+		box-shadow: var(--shadow-md);
+		gap: 0.25rem;
 	}
 
 	.tab {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
 		padding: 1rem 1.5rem;
 		background: none;
 		border: none;
 		cursor: pointer;
 		font-weight: 500;
-		color: #666;
-		border-bottom: 3px solid transparent;
-		transition: all 0.3s ease;
+		color: var(--fsp-dark-gray);
+		border-radius: var(--border-radius-sm);
+		transition: var(--transition);
+		position: relative;
 	}
 
-	.tab:hover {
-		color: #007bff;
-		background: #f8f9fa;
+	.tab:hover:not(.active) {
+		background: rgba(97, 164, 212, 0.1);
+		color: var(--fsp-light-blue);
+		transform: translateY(-1px);
 	}
 
 	.tab.active {
-		color: #007bff;
-		border-bottom-color: #007bff;
-		background: #f8f9fa;
+		background: var(--fsp-light-blue);
+		color: white;
+		box-shadow: var(--shadow-sm);
 	}
 
+	.tab-icon {
+		font-size: 1.1rem;
+	}
+
+	.tab-text {
+		font-size: 0.95rem;
+	}
+
+	/* Policy Content */
 	.policy-content {
-		background: white;
-		border-radius: 8px;
-		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+		margin-bottom: 2rem;
+	}
+
+	.policy-card {
+		background: rgba(255, 255, 255, 0.95);
+		backdrop-filter: blur(20px);
+		border-radius: var(--border-radius-lg);
+		box-shadow: var(--shadow-xl);
+		border: 1px solid rgba(255, 255, 255, 0.2);
 		overflow: hidden;
 	}
 
-	.policy-title {
-		background: #007bff;
+	.policy-header {
+		background: var(--gradient-primary);
 		color: white;
-		padding: 1rem 2rem;
+		padding: 2rem;
+		position: relative;
 	}
 
-	.policy-title h3 {
-		margin: 0;
-		font-size: 1.3rem;
+	.policy-header::after {
+		content: '';
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 1px;
+		background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+	}
+
+	.policy-title-section {
+		text-align: center;
+	}
+
+	.policy-title {
+		font-size: 1.75rem;
+		font-weight: 700;
+		margin-bottom: 1rem;
+		text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	}
+
+	.policy-meta {
+		display: flex;
+		justify-content: center;
+		gap: 2rem;
+		flex-wrap: wrap;
+	}
+
+	.meta-item {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.9rem;
+		opacity: 0.9;
+	}
+
+	.meta-icon {
+		font-size: 1rem;
 	}
 
 	.rendered-content {
-		padding: 2rem;
-		line-height: 1.6;
-		color: #333;
-		max-height: 600px;
+		padding: 3rem;
+		line-height: 1.7;
+		color: var(--fsp-dark-gray);
+		max-height: 70vh;
 		overflow-y: auto;
+		position: relative;
 	}
 
+	/* Custom Scrollbar */
+	.rendered-content::-webkit-scrollbar {
+		width: 8px;
+	}
+
+	.rendered-content::-webkit-scrollbar-track {
+		background: rgba(213, 218, 226, 0.3);
+		border-radius: 4px;
+	}
+
+	.rendered-content::-webkit-scrollbar-thumb {
+		background: var(--fsp-light-blue);
+		border-radius: 4px;
+	}
+
+	.rendered-content::-webkit-scrollbar-thumb:hover {
+		background: var(--fsp-navy);
+	}
+
+	/* Content Styling */
 	.rendered-content :global(h1) {
-		color: #1a1a1a;
-		border-bottom: 2px solid #007bff;
-		padding-bottom: 0.5rem;
-		margin-bottom: 1.5rem;
+		color: var(--fsp-navy);
+		border-bottom: 3px solid var(--fsp-light-blue);
+		padding-bottom: 0.75rem;
+		margin-bottom: 2rem;
+		font-size: 1.75rem;
+		font-weight: 700;
 	}
 
 	.rendered-content :global(h2) {
-		color: #007bff;
-		margin-top: 2rem;
-		margin-bottom: 1rem;
+		color: var(--fsp-light-blue);
+		margin-top: 2.5rem;
+		margin-bottom: 1.25rem;
+		font-size: 1.4rem;
+		font-weight: 600;
+		position: relative;
+		padding-left: 1rem;
+	}
+
+	.rendered-content :global(h2)::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 0.25rem;
+		width: 4px;
+		height: 1.5rem;
+		background: var(--fsp-orange);
+		border-radius: 2px;
 	}
 
 	.rendered-content :global(h3) {
-		color: #333;
-		margin-top: 1.5rem;
-		margin-bottom: 0.75rem;
+		color: var(--fsp-dark-gray);
+		margin-top: 2rem;
+		margin-bottom: 1rem;
+		font-weight: 600;
 	}
 
 	.rendered-content :global(table) {
 		width: 100%;
 		border-collapse: collapse;
-		margin: 1rem 0;
+		margin: 2rem 0;
+		border-radius: var(--border-radius-sm);
+		overflow: hidden;
+		box-shadow: var(--shadow-sm);
 	}
 
 	.rendered-content :global(th),
 	.rendered-content :global(td) {
-		border: 1px solid #dee2e6;
-		padding: 0.75rem;
+		padding: 1rem 1.25rem;
 		text-align: left;
+		border-bottom: 1px solid var(--fsp-light-gray);
 	}
 
 	.rendered-content :global(th) {
-		background: #f8f9fa;
+		background: linear-gradient(135deg, var(--fsp-light-blue), var(--fsp-navy));
+		color: white;
 		font-weight: 600;
+		text-transform: uppercase;
+		font-size: 0.85rem;
+		letter-spacing: 0.05em;
+	}
+
+	.rendered-content :global(tbody tr):hover {
+		background: rgba(97, 164, 212, 0.05);
 	}
 
 	.rendered-content :global(ul),
 	.rendered-content :global(ol) {
-		margin-bottom: 1rem;
+		margin-bottom: 1.5rem;
 		padding-left: 2rem;
 	}
 
 	.rendered-content :global(li) {
-		margin-bottom: 0.5rem;
+		margin-bottom: 0.75rem;
+		line-height: 1.6;
+	}
+
+	.rendered-content :global(li)::marker {
+		color: var(--fsp-light-blue);
 	}
 
 	.rendered-content :global(p) {
-		margin-bottom: 1rem;
+		margin-bottom: 1.25rem;
 	}
 
 	.rendered-content :global(strong) {
-		color: #007bff;
+		color: var(--fsp-navy);
+		font-weight: 600;
 	}
 
-	@media (max-width: 768px) {
+	.rendered-content :global(code) {
+		background: rgba(97, 164, 212, 0.1);
+		color: var(--fsp-navy);
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+		font-family: 'Monaco', 'Menlo', monospace;
+		font-size: 0.9em;
+	}
+
+	.rendered-content :global(blockquote) {
+		border-left: 4px solid var(--fsp-orange);
+		background: rgba(250, 167, 47, 0.05);
+		padding: 1rem 1.5rem;
+		margin: 1.5rem 0;
+		border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
+		font-style: italic;
+	}
+
+	/* Spinner Animation */
+	.spinner {
+		width: 16px;
+		height: 16px;
+		border: 2px solid rgba(255, 255, 255, 0.3);
+		border-top: 2px solid white;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		0% { transform: rotate(0deg); }
+		100% { transform: rotate(360deg); }
+	}
+
+	/* Responsive Design */
+	@media (max-width: 968px) {
 		.policy-tabs {
 			flex-direction: column;
 		}
 
 		.tab {
-			text-align: center;
+			justify-content: flex-start;
 		}
 
 		.action-buttons {
@@ -284,9 +549,59 @@
 			width: 100%;
 			max-width: 300px;
 		}
+	}
+
+	@media (max-width: 768px) {
+		.preview-header {
+			padding: 2rem 1.5rem;
+		}
 
 		.rendered-content {
+			padding: 2rem 1.5rem;
+		}
+
+		.policy-header {
+			padding: 1.5rem;
+		}
+
+		.policy-meta {
+			flex-direction: column;
+			gap: 1rem;
+		}
+
+		.preview-title {
+			font-size: 1.75rem;
+		}
+
+		.policy-title {
+			font-size: 1.5rem;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.policy-preview {
+			padding: 0 0.5rem;
+		}
+
+		.preview-header {
+			padding: 1.5rem 1rem;
+		}
+
+		.rendered-content {
+			padding: 1.5rem 1rem;
+			max-height: 60vh;
+		}
+
+		.policy-header {
 			padding: 1rem;
+		}
+
+		.tab {
+			padding: 0.75rem 1rem;
+		}
+
+		.tab-text {
+			font-size: 0.85rem;
 		}
 	}
 </style>
