@@ -8,7 +8,10 @@
 <svelte:head>
 	<link rel="icon" href={favicon} />
 	<title>Security Policy Generator | FSP Research</title>
-	<meta name="description" content="AI-powered security policy generation for cybersecurity education and training" />
+	<meta
+		name="description"
+		content="AI-powered security policy generation for cybersecurity education and training"
+	/>
 </svelte:head>
 
 <div class="app-layout">
@@ -16,7 +19,9 @@
 		<nav class="nav-container">
 			<div class="brand">
 				<div class="logo-section">
-					<h1 class="gradient-text">FSP Research</h1>
+					<a href="https://fs-platforms.com/" class="gradient-text-link" target="_blank">
+						<h1 class="gradient-text">FSP Research</h1>
+					</a>
 					<span class="tagline">Security Policy Innovation</span>
 				</div>
 			</div>
@@ -33,18 +38,23 @@
 	<footer class="app-footer">
 		<div class="footer-content">
 			<div class="footer-brand">
-				<h3 class="gradient-text">FSP Research</h3>
+				<a href="https://fs-platforms.com/" class="gradient-text-link" target="_blank">
+					<h3 class="gradient-text">FSP Research</h3>
+				</a>
 				<p>Advancing cybersecurity education through innovative AI-powered tools and research.</p>
 			</div>
 			<div class="footer-links">
 				<div class="footer-section">
 					<h4>Research</h4>
-					<p class="footer-note">This tool uses the lowest-performing LLM we've benchmarked, and thus is for educational purposes only.</p>
+					<p class="footer-note">
+						This tool uses the lowest-performing LLM we've benchmarked, and thus is for educational
+						purposes only.
+					</p>
 				</div>
 			</div>
 		</div>
 		<div class="footer-bottom">
-			<p>&copy; 2025 FSP Research. Built for cybersecurity education and training.</p>
+			<p>&copy; 2025 <a href="https://fs-platforms.com/" class="gradient-text-link" target="_blank">FSP Research</a>. Built for cybersecurity education and training.</p>
 		</div>
 	</footer>
 </div>
@@ -197,6 +207,11 @@
 		font-size: 0.875rem;
 	}
 
+	.gradient-text-link {
+		text-decoration: none;
+		color: white;
+	}
+
 	@media (max-width: 768px) {
 		.nav-container {
 			padding: 1rem;
@@ -224,11 +239,11 @@
 		.nav-container {
 			padding: 0.75rem;
 		}
-		
+
 		.logo-section h1 {
 			font-size: 1.25rem;
 		}
-		
+
 		.beta-badge {
 			font-size: 0.75rem;
 			padding: 0.25rem 0.5rem;
