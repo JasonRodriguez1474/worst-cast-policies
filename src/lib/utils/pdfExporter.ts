@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import MarkdownIt from 'markdown-it';
-import html2pdf from 'html2pdf.js'; // Add this import
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import type { PolicySet, SecurityFramework } from '$lib/types';
 
 interface PDFOptions {
@@ -78,44 +79,199 @@ async function createPolicyPDF(
 	const md = new MarkdownIt();
 	const htmlContent = md.render(markdownContent);
 
-	// Create a container for the HTML with enhanced CSS for tables and lists
-	const container = document.createElement('div');
-	container.innerHTML = `
-        <style>
-            table { border-collapse: collapse; width: 100%; margin: 10px 0; }
-            th, td { border: 2px solid #000; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; font-weight: bold; }
-            ul, ol { margin-left: 20px; }
-            li { margin-bottom: 5px; }
-            ul ul, ol ol { margin-left: 15px; } /* Better sublist handling */
-        </style>
-        <h1>${policyTitle}</h1>
-        <h2>${organizationName}</h2>
-        <p><strong>Framework:</strong> ${framework}</p>
-        <p><strong>Generated:</strong> ${new Date().toLocaleDateString()}</p>
-        ${htmlContent}
-    `;
+	// Create PDF document
+	const doc = new jsPDF({
+		unit: 'mm',
+		format: 'a4',
+		orientation: 'portrait'
+	});
 
-	// Append to body temporarily for rendering
-	document.body.appendChild(container);
+	// Set default font
+	doc.setFontSize(options.fontSize);
+	let yPosition = options.margin;
 
-	// Configure html2pdf options
-	const pdfOptions = {
-		margin: options.margin,
-		filename: 'temp.pdf',
-		image: { type: 'jpeg', quality: 0.98 },
-		html2canvas: { scale: 2, useCORS: true },
-		jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-	};
+	// Add title
+	doc.setFontSize(16);
+	doc.setFont('helvetica', 'bold');
+	doc.text(policyTitle, options.margin, yPosition);
+	yPosition += 10;
+
+	// Add organization name
+	doc.setFontSize(14);
+	doc.text(organizationName, options.margin, yPosition);
+	yPosition += 8;
+
+	// Add framework and date
+	doc.setFontSize(10);
+	doc.setFont('helvetica', 'normal');
+	doc.text(`Framework: ${framework}`, options.margin, yPosition);
+	yPosition += 5;
+	doc.text(`Generated: ${new Date().toLocaleDateString()}`, options.margin, yPosition);
+	yPosition += 10;
+
+	// Parse and render HTML content
+	yPosition = await renderHtmlContent(doc, htmlContent, options.margin, yPosition, options);
 
 	// Generate PDF as Uint8Array
-	const pdfBlob = await html2pdf().set(pdfOptions).from(container).outputPdf('blob');
-	const arrayBuffer = await pdfBlob.arrayBuffer();
+	const pdfOutput = doc.output('arraybuffer');
+	return new Uint8Array(pdfOutput);
+}
 
-	// Remove temporary container
-	document.body.removeChild(container);
+async function renderHtmlContent(
+	doc: jsPDF,
+	htmlContent: string,
+	leftMargin: number,
+	startY: number,
+	options: PDFOptions
+): Promise<number> {
+	const parser = new DOMParser();
+	const htmlDoc = parser.parseFromString(htmlContent, 'text/html');
+	const body = htmlDoc.body;
+	
+	let yPosition = startY;
+	const pageHeight = options.pageHeight - options.margin;
+	const pageWidth = options.pageWidth - (2 * options.margin);
 
-	return new Uint8Array(arrayBuffer);
+	function checkPageBreak(requiredSpace: number = 10): void {
+		if (yPosition + requiredSpace > pageHeight) {
+			doc.addPage();
+			yPosition = options.margin;
+		}
+	}
+
+	function processElement(element: Element): void {
+		const tagName = element.tagName.toLowerCase();
+
+		switch (tagName) {
+			case 'h1':
+			case 'h2':
+			case 'h3':
+			case 'h4':
+			case 'h5':
+			case 'h6': {
+				checkPageBreak(15);
+				yPosition += 5;
+				const headingSize = tagName === 'h1' ? 14 : tagName === 'h2' ? 12 : 11;
+				doc.setFontSize(headingSize);
+				doc.setFont('helvetica', 'bold');
+				const headingText = element.textContent || '';
+				const headingLines = doc.splitTextToSize(headingText, pageWidth);
+				doc.text(headingLines, leftMargin, yPosition);
+				yPosition += headingLines.length * (headingSize * 0.35) + 5;
+				doc.setFontSize(options.fontSize);
+				doc.setFont('helvetica', 'normal');
+				break;
+			}
+
+			case 'p': {
+				checkPageBreak(10);
+				yPosition += 3;
+				const text = element.textContent || '';
+				if (text.trim()) {
+					const lines = doc.splitTextToSize(text, pageWidth);
+					doc.text(lines, leftMargin, yPosition);
+					yPosition += lines.length * (options.fontSize * 0.35) + 3;
+				}
+				break;
+			}
+
+			case 'ul':
+			case 'ol': {
+				checkPageBreak(15);
+				yPosition += 3;
+				const listItems = Array.from(element.children);
+				listItems.forEach((li, index) => {
+					checkPageBreak(8);
+					const bullet = tagName === 'ul' ? '•' : `${index + 1}.`;
+					const liText = li.textContent || '';
+					const indentedText = `${bullet} ${liText}`;
+					const liLines = doc.splitTextToSize(indentedText, pageWidth - 10);
+					doc.text(liLines, leftMargin + 5, yPosition);
+					yPosition += liLines.length * (options.fontSize * 0.35) + 2;
+				});
+				yPosition += 3;
+				break;
+			}
+
+			case 'table': {
+				checkPageBreak(30);
+				const tableData: string[][] = [];
+				const rows = Array.from(element.querySelectorAll('tr'));
+				
+				rows.forEach(row => {
+					const cells = Array.from(row.querySelectorAll('th, td'));
+					const rowData = cells.map(cell => cell.textContent || '');
+					tableData.push(rowData);
+				});
+
+				if (tableData.length > 0) {
+					autoTable(doc, {
+						head: [tableData[0]],
+						body: tableData.slice(1),
+						startY: yPosition,
+						margin: { left: leftMargin },
+						theme: 'grid',
+						headStyles: {
+							fillColor: [240, 240, 240],
+							textColor: [0, 0, 0],
+							fontSize: options.fontSize,
+							fontStyle: 'bold'
+						},
+						bodyStyles: {
+							fontSize: options.fontSize,
+							textColor: [0, 0, 0]
+						},
+						styles: {
+							cellPadding: 3,
+							lineColor: [0, 0, 0],
+							lineWidth: 0.5
+						}
+					});
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					yPosition = (doc as any).lastAutoTable.finalY + 10;
+				}
+				break;
+			}
+
+			case 'strong':
+			case 'b':
+				// These are handled inline, skip for now
+				break;
+
+			case 'em':
+			case 'i':
+				// These are handled inline, skip for now  
+				break;
+
+			case 'br':
+				yPosition += options.fontSize * 0.35;
+				break;
+
+			default:
+				// For other elements, process their children
+				Array.from(element.children).forEach(child => {
+					processElement(child);
+				});
+				
+				// If it's a text node or leaf element, add the text
+				if (element.children.length === 0) {
+					const text = element.textContent || '';
+					if (text.trim()) {
+						checkPageBreak(8);
+						const lines = doc.splitTextToSize(text, pageWidth);
+						doc.text(lines, leftMargin, yPosition);
+						yPosition += lines.length * (options.fontSize * 0.35) + 2;
+					}
+				}
+		}
+	}
+
+	// Process all child elements
+	Array.from(body.children).forEach(child => {
+		processElement(child);
+	});
+
+	return yPosition;
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
