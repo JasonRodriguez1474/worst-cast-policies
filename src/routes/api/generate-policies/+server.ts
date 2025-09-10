@@ -144,15 +144,15 @@ ${frameworkMapping.incidentResponse.join('\n')}`;
 		// Generate all three policies concurrently
 		const [accessControlResult, acceptableUsageResult, incidentResponseResult] = await Promise.all([
 			generateText({
-				model: openrouter('mistralai/mistral-nemo'),
+				model: openrouter('mistralai/ministral-3b'),
 				prompt: accessControlPrompt
 			}),
 			generateText({
-				model: openrouter('mistralai/mistral-nemo'),
+				model: openrouter('mistralai/ministral-3b'),
 				prompt: acceptableUsagePrompt
 			}),
 			generateText({
-				model: openrouter('mistralai/mistral-nemo'),
+				model: openrouter('mistralai/ministral-3b'),
 				prompt: incidentResponsePrompt
 			})
 		]);
